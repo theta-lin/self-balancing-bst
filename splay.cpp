@@ -33,9 +33,6 @@ private:
 
 	void print(std::size_t node, int depth)
 	{
-		if (depth > 6)
-			return;
-		
 		for (int i(0); i < depth; ++i)
 			std::cout << '\t';
 		if (node == empty)
@@ -50,13 +47,24 @@ private:
 		}
 	}
 
+	bool getSide(std::size_t node)
+	{
+		return node == data[data[node].parent][1];
+	}
+
 	void rotate(std::size_t node)
 	{
 		std::size_t parent(data[node].parent);
-		bool side(node == data[parent][1]);
+		bool side(getSide(node));
+		bool sideParent(getSide(parent));
 		data[parent][side] = data[node][!side];
+		if (data[parent][side] != empty)
+			data[data[parent][side]].parent = parent;
 		data[node][!side] = parent;
+		
 		data[node].parent = data[parent].parent;
+		if (data[node].parent != empty)
+			data[data[node].parent][sideParent] = node;
 		data[parent].parent = node;
 	}
 	
@@ -69,8 +77,8 @@ private:
 			grandparent = data[parent].parent;
 			if (grandparent != empty)
 			{
-				bool side(node == data[parent][1]);
-				bool sideParent(parent == data[grandparent][1]);
+				bool side(getSide(node));
+				bool sideParent(getSide(parent));
 				if (side == sideParent)
 					rotate(parent);
 				else
@@ -99,9 +107,7 @@ public:
 	
 	std::size_t find(int value, bool getPred = false)
 	{
-		//std::cout << "find" << '\n';
 		std::size_t node(root), pred(empty);
-		int count(0);
 		while (node != empty && data[node].value != value)
 		{
 			pred = node;
@@ -109,42 +115,55 @@ public:
 				node = data[node][0];
 			else
 				node = data[node][1];
-			//std::cout << node << ' ' << data[node][0] << ' ' << data[node][1] << '\n';
-			++count;
-			if (count > 10)
-			{
-				std::cout << "FAILED\n";
-				break;
-			}
 		}
-		return getPred ? pred : node;
+		
+		if (getPred)
+		{
+			return pred;
+		}
+		else
+		{
+			if (node != empty)
+				splay(node);
+			return node;
+		}
 	}
 
 	void insert(int value)
 	{
-		//std::cout << "insert" << '\n';
-		std::size_t node(find(value, true));
-		if (node == empty || data[node].value != value)
+		std::size_t pred(find(value, true));
+		if (pred != empty)
 		{
-			data.push_back(Node(value, node));
-			if (node != empty)
+			if (value < data[pred].value)
 			{
-				if (value < data[node].value)
-					data[node][0] = data.size() - 1;
+				if (data[pred][0] != empty)
+					return;
 				else
-					data[node][1] = data.size() - 1;
+					data[pred][0] = data.size();
 			}
-			splay(data.size() - 1);
+			else
+			{
+				if (data[pred][1] != empty)
+					return;
+				else
+					data[pred][1] = data.size();
+			}
 		}
+		else if (root != empty)
+		{
+			return;
+		}
+		data.push_back(Node(value, pred));
+		splay(data.size() - 1);
 	}
 
 	void erase(int value)
 	{
-		//std::cout << "erase" << '\n';
 		std::size_t node(find(value));
 		if (node != empty)
 		{
 			splay(node);
+			
 			if (data[root][0] == empty)
 			{
 				if (data[root][1] != empty)
@@ -153,11 +172,14 @@ public:
 			}
 			else
 			{
+				std::size_t oldRoot(root);
 				data[data[root][0]].parent = empty;
 				std::size_t max(data[root][0]);
 				while (data[max][1] != empty)
 					max = data[max][1];
 				splay(max);
+				data[oldRoot][0] = root;
+				root = oldRoot;
 				
 				if (data[root][1] != empty)
 					data[data[root][1]].parent = data[root][0];
@@ -190,8 +212,8 @@ int main()
 	Splay test(100000000);
 
 	srand(time(0));
-	int task(1);
-	int taskSize(10);
+	int task(1000);
+	int taskSize(100000);
 
 	double beg(std::clock());
 	for (int t(0); t < task; ++t)
@@ -215,15 +237,13 @@ int main()
 			if (control.count(n1) != (test.find(n1) != Splay::empty))
 			{
 				std::cout << "Task Failed: " << i << " lookup=" << n1 << ' ' << control.count(n1) << ' ' << test.find(n1) << std::endl;
-				test.print();
+				//test.print();
 				goto fail;
 			}
 		}
 	}
 	fail:
 	double end(std::clock());
-	
-	test.print();
 
 	std::cout << (end - beg) / CLOCKS_PER_SEC << std::endl;
 
