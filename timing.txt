@@ -1,3 +1,4 @@
 llrb		982.662
 splay		602.035(no splay find) 783.083
+top_down_splay  625.828
 std::set	444.292
